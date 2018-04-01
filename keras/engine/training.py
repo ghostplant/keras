@@ -22,6 +22,7 @@ from ..utils.data_utils import OrderedEnqueuer
 from ..utils.generic_utils import Progbar
 from .. import callbacks as cbks
 from ..legacy import interfaces
+from ..preprocessing.sequence import step_based_generator
 
 
 def _standardize_input_data(data, names, shapes=None,
@@ -1674,6 +1675,18 @@ class Model(Container):
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 val_ins = [0.]
 
+        if steps_per_epoch is not None:
+            # Migrate half case (steps_per_epoch is not None) into fit_generator,
+            # typical example for this case: examples/mnist_tfrecord.py.
+            generator = step_based_generator(x, y, sample_weights,
+                                             steps=steps_per_epoch)
+            return self.fit_generator(generator, epochs=epochs, shuffle=False,
+                                      verbose=verbose, callbacks=callbacks,
+                                      validation_data=validation_data,
+                                      initial_epoch=initial_epoch,
+                                      steps_per_epoch=steps_per_epoch,
+                                      validation_steps=validation_steps)
+
         # Prepare input arrays and training function.
         if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
             ins = x + y + sample_weights + [1.]
@@ -1766,6 +1779,14 @@ class Model(Container):
             x, y,
             sample_weight=sample_weight,
             batch_size=batch_size)
+
+        if steps is not None:
+            # Migrate half case (steps is not None) into evaluate_generator,
+            # typical example for this case: examples/mnist_mlp.py.
+            generator = step_based_generator(x, y, sample_weights,
+                                             steps=steps)
+            return self.evaluate_generator(generator, steps=steps, verbose=verbose)
+
         # Prepare inputs, delegate logic to `_test_loop`.
         if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
             ins = x + y + sample_weights + [0.]
@@ -1823,6 +1844,13 @@ class Model(Container):
                                  'divided by the batch size. Found: ' +
                                  str(x[0].shape[0]) + ' samples. '
                                  'Batch size: ' + str(batch_size) + '.')
+
+        if steps is not None:
+            # Migrate half case (steps is not None) into predict_generator,
+            # typical example for this case: examples/mnist_siamese.py.
+            generator = step_based_generator(x,
+                                             steps=steps)
+            return self.predict_generator(generator, steps=steps, verbose=verbose)
 
         # Prepare inputs, delegate logic to `_predict_loop`.
         if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
@@ -2212,7 +2240,11 @@ class Model(Container):
                                          str(generator_output))
                     # build batch logs
                     batch_logs = {}
-                    if isinstance(x, list):
+                    if len(x) == 0:
+                        # Handle data tensors support when no input given
+                        # step-size = 1 for data tensors
+                        batch_size = 1
+                    elif isinstance(x, list):
                         batch_size = x[0].shape[0]
                     elif isinstance(x, dict):
                         batch_size = list(x.values())[0].shape[0]
@@ -2399,7 +2431,11 @@ class Model(Container):
                     outs = [outs]
                 outs_per_batch.append(outs)
 
-                if isinstance(x, list):
+                if len(x) == 0:
+                    # Handle data tensors support when no input given
+                    # step-size = 1 for data tensors
+                    batch_size = 1
+                elif isinstance(x, list):
                     batch_size = x[0].shape[0]
                 elif isinstance(x, dict):
                     batch_size = list(x.values())[0].shape[0]

@@ -12,6 +12,41 @@ from six.moves import range
 from ..utils.data_utils import Sequence
 
 
+def step_based_generator(x=None, y=None, sample_weights=None,
+                         steps=None):
+    """Provide Step-based generator used by: fit/test/predict
+       when steps/steps_per_epoch is not None.
+
+       1) fit(.., steps_per_epoch=k, ..)  =>
+              generator = step_based_generator(..)
+              fit_generator(generator, steps_per_epoch=k, ..)
+
+       2) evaluate(.., steps=k, ..)  =>
+              generator = step_based_generator(..)
+              steps_generator(generator, steps=k, ..)
+
+       3) predict(.., steps=k, ..)  =>
+              generator = step_based_generator(..)
+              predict_generator(generator, steps=k, ..)
+
+    # Arguments
+        x: Transfered from arguement x in fit/test/predict.
+        y: Transfered from arguement y in fit/test.
+        sample_weights: sample_weights provided from fit/test.
+        steps: steps or steps_per_epoch provided from fit/test/predict.
+
+    # Returns
+        the output of the generator of one of the following formats:
+        - a tuple `(x, y)`
+        - a tuple `(x, y, sample_weights)`.
+    """
+    for i in range(steps):
+        if sample_weights is None:
+            yield (x, y)
+        else:
+            yield (x, y, sample_weights)
+
+
 def pad_sequences(sequences, maxlen=None, dtype='int32',
                   padding='pre', truncating='pre', value=0.):
     """Pads sequences to the same length.
