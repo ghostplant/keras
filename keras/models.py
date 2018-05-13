@@ -1317,7 +1317,8 @@ class Sequential(Model):
     @interfaces.legacy_generator_methods_support
     def evaluate_generator(self, generator, steps=None,
                            max_queue_size=10, workers=1,
-                           use_multiprocessing=False):
+                           use_multiprocessing=False,
+                           verbose=0):
         """Evaluates the model on a data generator.
 
         The generator should return the same kind of data
@@ -1337,6 +1338,7 @@ class Sequential(Model):
                 relies on multiprocessing, you should not pass
                 non picklable arguments to the generator
                 as they can't be passed easily to children processes.
+            verbose: verbosity mode, 0 or 1.
 
         # Returns
             Scalar test loss (if the model has no metrics)
@@ -1354,7 +1356,8 @@ class Sequential(Model):
                                              steps,
                                              max_queue_size=max_queue_size,
                                              workers=workers,
-                                             use_multiprocessing=use_multiprocessing)
+                                             use_multiprocessing=use_multiprocessing,
+                                             verbose=verbose)
 
     @interfaces.legacy_generator_methods_support
     def predict_generator(self, generator, steps=None,
